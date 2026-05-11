@@ -27,3 +27,9 @@ env/
 
 # Logs
 *.log
+
+.vercel
+
+# Mídia
+*.mkv
+*.mp4
