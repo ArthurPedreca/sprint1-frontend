@@ -1,10 +1,12 @@
 """
-Challenge Sprint 1 - Sistema de Gestão de Ativos Industriais
+Challenge - Sistema de Gestão e Visualização Operacional de Ativos Industriais
 Aplicação Streamlit principal (entry point).
 
 A arquitetura é desacoplada em camadas:
-- src/backend  -> regras de negócio, persistência, simulação e conversão de sensores
-- src/frontend -> camada de apresentação (Streamlit), pode ser substituída por Gradio/FastAPI sem afetar o backend
+- src/backend  -> regras de negócio, persistência, simulação, conversão e
+                  avaliação de saúde dos sensores
+- src/frontend -> camada de apresentação (Streamlit), pode ser substituída por
+                  Gradio/FastAPI sem afetar o backend
 - src/config   -> configurações globais
 
 Para rodar localmente:
@@ -16,7 +18,7 @@ import streamlit as st
 
 from src.config.settings import APP_TITLE, APP_ICON, APP_DESCRIPTION
 from src.frontend.components.sidebar import render_sidebar
-from src.frontend.pages import consulta, cadastro, dados_brutos
+from src.frontend.pages import consulta, cadastro, dados_brutos, dashboard
 
 
 # --------------------------------------------------------------------------- #
@@ -69,10 +71,13 @@ st.markdown(
 # Estado da sessão (simples roteamento via session_state)
 # --------------------------------------------------------------------------- #
 if "page" not in st.session_state:
-    st.session_state.page = "consulta"
+    st.session_state.page = "dashboard"
 
 if "selected_equipment_id" not in st.session_state:
     st.session_state.selected_equipment_id = None
+
+if "tele_buster" not in st.session_state:
+    st.session_state.tele_buster = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -85,10 +90,11 @@ render_sidebar()
 # Roteamento das páginas
 # --------------------------------------------------------------------------- #
 PAGES = {
+    "dashboard": dashboard.render,
     "consulta": consulta.render,
     "cadastro": cadastro.render,
     "dados_brutos": dados_brutos.render,
 }
 
-page_render = PAGES.get(st.session_state.page, consulta.render)
+page_render = PAGES.get(st.session_state.page, dashboard.render)
 page_render()

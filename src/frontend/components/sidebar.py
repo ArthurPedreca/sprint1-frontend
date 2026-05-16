@@ -5,55 +5,54 @@ import streamlit as st
 from src.backend.repository import EquipamentoRepository
 
 
+def _nav_button(label: str, page: str, *, ativo: bool) -> None:
+    """Botão de navegação que atualiza a página atual."""
+    if st.button(
+        label,
+        use_container_width=True,
+        type="primary" if ativo else "secondary",
+    ):
+        st.session_state.page = page
+        if page != "dashboard":
+            # O dashboard preserva a seleção; as demais páginas a redefinem.
+            st.session_state.selected_equipment_id = None
+        st.rerun()
+
+
 def render_sidebar() -> None:
     repo = EquipamentoRepository()
     total = len(repo.listar())
+    pagina = st.session_state.get("page", "dashboard")
 
     with st.sidebar:
         st.markdown("## ⚙️ Gestão de Ativos")
-        st.caption("Sprint 1 — Cadastro Técnico")
+        st.caption("Sprint 2 — Visualização Operacional")
         st.markdown("---")
 
         st.markdown("### Navegação")
 
-        if st.button(
-            "🏠 Consulta de Equipamentos",
-            use_container_width=True,
-            type="primary" if st.session_state.page == "consulta" else "secondary",
-        ):
-            st.session_state.page = "consulta"
-            st.session_state.selected_equipment_id = None
-            st.rerun()
-
-        if st.button(
-            "📝 Novo Cadastro",
-            use_container_width=True,
-            type="primary" if (
-                st.session_state.page == "cadastro"
-                and st.session_state.selected_equipment_id is None
-            ) else "secondary",
-        ):
-            st.session_state.page = "cadastro"
-            st.session_state.selected_equipment_id = None
-            st.rerun()
-
-        if st.button(
-            "📊 Dados Brutos dos Sensores",
-            use_container_width=True,
-            type="primary" if st.session_state.page == "dados_brutos" else "secondary",
-        ):
-            st.session_state.page = "dados_brutos"
-            st.rerun()
+        _nav_button("🏭 Dashboard Operacional", "dashboard",
+                    ativo=pagina == "dashboard")
+        _nav_button("🏠 Consulta de Equipamentos", "consulta",
+                    ativo=pagina == "consulta")
+        _nav_button(
+            "📝 Novo Cadastro", "cadastro",
+            ativo=(pagina == "cadastro"
+                   and st.session_state.get("selected_equipment_id") is None),
+        )
+        _nav_button("📊 Dados Brutos dos Sensores", "dados_brutos",
+                    ativo=pagina == "dados_brutos")
 
         st.markdown("---")
         st.metric("Equipamentos cadastrados", total)
 
         st.markdown("---")
-        with st.expander("🔮 Próximos sprints", expanded=False):
+        with st.expander("🗺️ Sobre as Sprints", expanded=False):
             st.caption(
-                "• **Sprint 2**: integração com modelo preditivo  \n"
-                "• **Sprint 3**: detecção de anomalias e alertas  \n"
-                "• **Sprint 4**: dashboard analítico & RUL  \n"
+                "• **Sprint 1**: cadastro técnico e conversão de sinais  \n"
+                "• **Sprint 2**: dashboards, séries temporais e alertas  \n"
+                "• **Sprint 3**: detecção de anomalias em tempo real  \n"
+                "• **Sprint 4**: modelo preditivo & estimativa de RUL  \n"
                 "• **Sprint 5**: integração com sensores reais"
             )
 

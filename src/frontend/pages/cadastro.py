@@ -6,7 +6,13 @@ import streamlit as st
 
 from src.backend.models import Equipamento
 from src.backend.repository import EquipamentoRepository
-from src.config.settings import TIPOS_EQUIPAMENTO, STATUS_OPCOES
+from src.backend.telemetria import TelemetriaService
+from src.config.settings import (
+    PERFIS_SIMULACAO,
+    PLANTAS,
+    STATUS_OPCOES,
+    TIPOS_EQUIPAMENTO,
+)
 
 
 def _safe_index(opcoes: list, valor, default: int = 0) -> int:
@@ -121,9 +127,24 @@ def render() -> None:
             placeholder="Ex: 1024-XYZ-2024",
         )
         localizacao = col2.text_input(
-            "Localização",
+            "Descrição da localização",
             value=atual.localizacao if atual else "",
-            placeholder="Ex: Setor A — Linha 3",
+            placeholder="Ex: Linha de Extrusão 1",
+        )
+
+        # ---- Localização hierárquica (navegação operacional — Sprint 2)
+        col1, col2 = st.columns(2)
+        planta = col1.selectbox(
+            "Planta *",
+            options=PLANTAS,
+            index=_safe_index(PLANTAS, atual.planta if atual else None, default=0),
+            help="Planta industrial usada na navegação do Dashboard Operacional.",
+        )
+        area = col2.text_input(
+            "Área / Setor *",
+            value=atual.area if atual else "",
+            placeholder="Ex: Setor A - Extrusão",
+            help="Área dentro da planta onde o motor está instalado.",
         )
 
         col1, col2 = st.columns(2)
@@ -150,6 +171,24 @@ def render() -> None:
             height=100,
         )
 
+        # ---- Telemetria (Sprint 2)
+        st.subheader("🛰️ Telemetria")
+        perfil_simulacao = st.selectbox(
+            "Perfil de simulação da telemetria",
+            options=PERFIS_SIMULACAO,
+            index=_safe_index(
+                PERFIS_SIMULACAO,
+                atual.perfil_simulacao if atual else None,
+                default=0,
+            ),
+            help=(
+                "Define o comportamento dos dados de sensores exibidos no "
+                "Dashboard Operacional. 'Saudável' gera telemetria estável; "
+                "'Em degradação' e 'Crítico' geram tendências de falha "
+                "(aumento de temperatura e vibração) para fins de demonstração."
+            ),
+        )
+
         st.caption("Os campos marcados com * são obrigatórios.")
 
         # ---- Botões
@@ -166,6 +205,7 @@ def render() -> None:
             erros = _validar(
                 tag=tag, modelo=modelo, fabricante=fabricante,
                 potencia=potencia, tensao=tensao, corrente=corrente, rpm=rpm,
+                area=area,
             )
 
             # Verifica TAG duplicada (case-insensitive). Em edição, ignora a si mesmo.
@@ -189,10 +229,17 @@ def render() -> None:
                     atual.frequencia_hz = float(freq)
                     atual.numero_serie = numero_serie.strip()
                     atual.localizacao = localizacao.strip()
+                    atual.planta = planta
+                    atual.area = area.strip()
+                    atual.perfil_simulacao = perfil_simulacao
                     atual.data_instalacao = data_inst.isoformat()
                     atual.status = status
                     atual.observacoes = observacoes.strip()
                     repo.atualizar(atual)
+                    # Ficha técnica / perfil mudaram: recria o histórico de
+                    # telemetria para refletir as novas especificações.
+                    TelemetriaService().regenerar(atual)
+                    st.cache_data.clear()
                     st.success(f"✅ Equipamento `{tag}` atualizado com sucesso!")
                 else:
                     novo = Equipamento(
@@ -207,6 +254,9 @@ def render() -> None:
                         frequencia_hz=float(freq),
                         numero_serie=numero_serie.strip(),
                         localizacao=localizacao.strip(),
+                        planta=planta,
+                        area=area.strip(),
+                        perfil_simulacao=perfil_simulacao,
                         data_instalacao=data_inst.isoformat(),
                         status=status,
                         observacoes=observacoes.strip(),
@@ -231,7 +281,7 @@ def render() -> None:
 
 
 # --------------------------------------------------------------------------- #
-def _validar(*, tag, modelo, fabricante, potencia, tensao, corrente, rpm) -> list:
+def _validar(*, tag, modelo, fabricante, potencia, tensao, corrente, rpm, area) -> list:
     erros: list[str] = []
     if not tag.strip():
         erros.append("TAG é obrigatória.")
@@ -239,6 +289,8 @@ def _validar(*, tag, modelo, fabricante, potencia, tensao, corrente, rpm) -> lis
         erros.append("Modelo é obrigatório.")
     if not fabricante.strip():
         erros.append("Fabricante é obrigatório.")
+    if not area.strip():
+        erros.append("Área / Setor é obrigatória.")
     if potencia <= 0:
         erros.append("Potência deve ser maior que zero.")
     if tensao <= 0:

@@ -33,3 +33,6 @@ env/
 # Mídia
 *.mkv
 *.mp4
+
+# Histórico de telemetria gerado/persistido em runtime
+data/historico/

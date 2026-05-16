@@ -3,6 +3,7 @@
 import pandas as pd
 import streamlit as st
 
+from src.backend.historico_repository import HistoricoRepository
 from src.backend.repository import EquipamentoRepository
 
 
@@ -87,7 +88,8 @@ def render() -> None:
                 "Tensão (V)": e.tensao_v,
                 "Corrente (A)": e.corrente_nominal_a,
                 "RPM": e.rotacao_nominal_rpm,
-                "Localização": e.localizacao or "—",
+                "Planta": e.planta or "—",
+                "Área": e.area or "—",
                 "Status": e.status,
             }
             for e in filtrados
@@ -129,20 +131,25 @@ def render() -> None:
         c4.metric("Rotação", f"{selecionado.rotacao_nominal_rpm:,} RPM".replace(",", "."))
 
     # Botões de ação
-    col1, col2, col3 = st.columns(3)
-    if col1.button("👁️ Ver / Editar Ficha Técnica", use_container_width=True, type="primary"):
+    col1, col2, col3, col4 = st.columns(4)
+    if col1.button("🏭 Abrir no Dashboard", use_container_width=True, type="primary"):
+        st.session_state.selected_equipment_id = selecionado.id
+        st.session_state.page = "dashboard"
+        st.rerun()
+
+    if col2.button("👁️ Ver / Editar Ficha", use_container_width=True):
         st.session_state.selected_equipment_id = selecionado.id
         st.session_state.page = "cadastro"
         st.rerun()
 
-    if col2.button("📊 Visualizar Dados Brutos", use_container_width=True):
+    if col3.button("📊 Dados Brutos", use_container_width=True):
         st.session_state.selected_equipment_id = selecionado.id
         st.session_state.page = "dados_brutos"
         st.rerun()
 
     # Exclusão com confirmação (human-in-the-loop)
     confirm_key = f"confirmar_exclusao_{selecionado.id}"
-    if col3.button("🗑️ Excluir equipamento", use_container_width=True):
+    if col4.button("🗑️ Excluir", use_container_width=True):
         st.session_state[confirm_key] = True
 
     if st.session_state.get(confirm_key, False):
@@ -150,6 +157,9 @@ def render() -> None:
         col_a, col_b = st.columns([1, 1])
         if col_a.button("✅ Sim, excluir definitivamente", type="primary", use_container_width=True):
             repo.excluir(selecionado.id)
+            # Remove também o histórico de telemetria persistido do ativo.
+            HistoricoRepository().excluir(selecionado.id)
+            st.cache_data.clear()
             st.session_state.pop(confirm_key, None)
             st.success(f"Equipamento `{selecionado.tag}` excluído.")
             st.rerun()
